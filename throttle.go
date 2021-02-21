@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-var (
-	timeout = 5 * time.Second
-)
-
 // Throttle allows the client to throttle the rate at which requests are
 // handled by clients.
 type Throttle struct {
@@ -69,7 +65,7 @@ func (t *Throttle) Wait(r *http.Request) (*http.Request, error) {
 		return r, nil
 	case <-timeoutChan:
 		// timeout: do not serve the request
-		return nil, fmt.Errorf("one request per %v allowed", timeout)
+		return nil, fmt.Errorf("one request per %v allowed", t.requestRate)
 	}
 }
 
