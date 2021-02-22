@@ -2,8 +2,6 @@ package throttle
 
 import (
 	"fmt"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -25,25 +23,23 @@ func New(requestRate time.Duration) *Throttle {
 	return &throttle
 }
 
-// Wait ensures that only one request per client is served within Throttle's
-// defined timeout. For every client, which is distinguished by its IPv4
-// address, a token is produced once per timeout. The token is given to one of
-// the waiting requests, and a new token is produced thereafter. A request
-// either acquires a token within the given timeout, and the request is
-// returned; or the request runs out of time, and an error is returned. The
-// first token is spawned immediately.
-func (t *Throttle) Wait(r *http.Request) (*http.Request, error) {
+// Wait ensures that only one request per client is allowed within Throttle's
+// defined timeout. For every client, a token is produced once per timeout. The
+// token is given to one of the waiting requests, and a new token is produced
+// thereafter. A request either acquires a token within the given timeout, or
+// the request runs out of time, and an error is returned. The first token is
+// spawned immediately.
+func (t *Throttle) Wait(client string) error {
 	// every user has a channel that gets tokens
-	user := ip4(r)
 	t.tokenChansMutex.Lock()
-	tokenChan, ok := t.tokenChans[user]
+	tokenChan, ok := t.tokenChans[client]
 	if !ok {
 		tokenChan = make(chan struct{})
 		go func() {
 			// the first token is spawned immediately
 			tokenChan <- struct{}{}
 		}()
-		t.tokenChans[user] = tokenChan
+		t.tokenChans[client] = tokenChan
 	}
 	t.tokenChansMutex.Unlock()
 
@@ -62,20 +58,9 @@ func (t *Throttle) Wait(r *http.Request) (*http.Request, error) {
 			time.Sleep(t.requestRate)
 			tokenChan <- struct{}{}
 		}()
-		return r, nil
+		return nil
 	case <-timeoutChan:
 		// timeout: do not serve the request
-		return nil, fmt.Errorf("one request per %v allowed", t.requestRate)
+		return fmt.Errorf("one request per %v allowed", t.requestRate)
 	}
-}
-
-func ip4(r *http.Request) string {
-	if !strings.Contains(r.RemoteAddr, ":") {
-		return r.RemoteAddr
-	}
-	fields := strings.Split(r.RemoteAddr, ":")
-	if len(fields) < 2 {
-		return r.RemoteAddr
-	}
-	return fields[0]
 }

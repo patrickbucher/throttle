@@ -1,7 +1,6 @@
 package throttle
 
 import (
-	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -66,9 +65,7 @@ func TestDoubleRequestTooFast(t *testing.T) {
 			wg.Add(1)
 			go func(nthRequest int) {
 				time.Sleep(time.Duration(nthRequest) * testCase.ProgressiveRequestPause)
-				r, err := http.NewRequest(http.MethodGet, "http://localhost", nil)
-				r, err = throttle.Wait(r)
-				if r != nil && err == nil {
+				if err := throttle.Wait("alice"); err == nil {
 					okMu.Lock()
 					ok++
 					okMu.Unlock()

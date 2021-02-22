@@ -1,2 +1,3 @@
 - [ ] user (client) as a argument to Wait, do not enforce using IPv4 address
 - [ ] provide README with use cases and code examples
+- [ ] replace token chan mutex with messaging?
